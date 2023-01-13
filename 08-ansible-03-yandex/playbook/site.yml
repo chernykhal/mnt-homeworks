@@ -87,7 +87,7 @@
         owner: "{{ ansible_user_id }}"
         group: "{{ ansible_user_gid }}"
         mode: 0644
-      notify: Start Vector service
+      notify: Start vector service
 - name: Install Nginx
   hosts: lighthouse
   handlers:
