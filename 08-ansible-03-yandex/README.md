@@ -26,3 +26,5 @@
 На сервере lighthouse, клонируем репозиторий lighthouse в папку на сервере, темплейтим конфиг lighthouse для nginx и перезагрудаем nginx
 ``
 
+### Результат:
+![img.png](img.png)
