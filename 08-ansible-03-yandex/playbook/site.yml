@@ -1,0 +1,150 @@
+---
+- name: Install Clickhouse
+  hosts: clickhouse
+  handlers:
+    - name: Start clickhouse service
+      become: true
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: restarted
+  tasks:
+    - block:
+        - name: Get {{ clickhouse_packages | flatten(1) }} distrib
+          ansible.builtin.get_url:
+            url: "https://packages.clickhouse.com/rpm/stable/{{ item }}-{{ clickhouse_version }}.noarch.rpm"
+            dest: "./{{ item }}-{{ clickhouse_version }}.rpm"
+          with_items: "{{ clickhouse_packages }}"
+      rescue:
+        - name: Get {{ clickhouse_packages | flatten(1) }} distrib(rescue)
+          ansible.builtin.get_url:
+            url: "https://packages.clickhouse.com/rpm/stable/clickhouse-common-static-{{ clickhouse_version }}.x86_64.rpm"
+            dest: "./clickhouse-common-static-{{ clickhouse_version }}.rpm"
+    - name: Install clickhouse packages
+      become: true
+      ansible.builtin.yum:
+        name:
+          - clickhouse-common-static-{{ clickhouse_version }}.rpm
+          - clickhouse-client-{{ clickhouse_version }}.rpm
+          - clickhouse-server-{{ clickhouse_version }}.rpm
+      notify: Start clickhouse service
+    - name: Template clickhouse config
+      template:
+        src: clickhouse.config.j2
+        dest: "{{ clickhouse_config_path }}"
+        mode: 0644
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+      become: true
+    - name: Template clickhouse users config
+      template:
+        src: clickhouse.users.j2
+        dest: "{{ clickhouse_users_path }}"
+        mode: 0644
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+      become: true
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Create database
+      ansible.builtin.command: "clickhouse-client -q 'create database logs;'"
+      register: create_db
+      failed_when: create_db.rc != 0 and create_db.rc !=82
+      changed_when: create_db.rc == 0
+- name: Install Vector
+  hosts: vector
+  handlers:
+    - name: Start vector service
+      become: true
+      ansible.builtin.systemd:
+        name: vector
+        state: restarted
+  tasks:
+    - name: Download vector
+      ansible.builtin.get_url:
+        url: "https://packages.timber.io/vector/{{ vector_version }}/vector-{{ vector_version }}-1.{{ ansible_architecture }}.rpm"
+        dest: "./vector-{{ vector_version }}-1.{{ ansible_architecture }}.rpm"
+        mode: 0644
+    - name: Install vector packages
+      become: true
+      ansible.builtin.yum:
+        name: vector-{{ vector_version }}-1.{{ ansible_architecture }}.rpm
+        state: present
+      notify: Start vector service
+    - name: Template vector config
+      ansible.builtin.template:
+        src: vector.j2
+        dest: /etc/vector/vector.toml
+        mode: 0644
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+        validate: vector validate --no-environment --config-toml %s
+      become: true
+    - name: Create vector logs directory
+      become: true
+      file:
+        path: /var/lib/vector/local_logs
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+        mode: 0644
+      notify: Start Vector service
+- name: Install Nginx
+  hosts: lighthouse
+  handlers:
+    - name: Start nginx service
+      become: true
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+  tasks:
+    - name: Install epel-release
+      become: true
+      yum:
+        name: epel-release
+        state: present
+    - name: Install nginx
+      become: true
+      yum:
+        name: nginx
+        state: present
+    - name: Template nginx config
+      become: true
+      template:
+        src: nginx.j2
+        dest: /etc/nginx/nginx.conf
+        mode: 0644
+      notify: Start nginx service
+- name: Install lighthouse
+  hosts: lighthouse
+  handlers:
+    - name: Reload nginx service
+      become: true
+      command: nginx -s reload
+  pre_tasks:
+    - name: Install git
+      become: true
+      yum:
+        name: git
+        state: present
+  tasks:
+    - name: Create lighthouse directory
+      become: true
+      file:
+        path: "{{ lighthouse_dir }}"
+        state: directory
+        owner: "{{ nginx_user_name }}"
+        group: "{{ nginx_user_name }}"
+        mode: 0755
+    - name: Copy lighthouse from git
+      git:
+        repo: "{{ lighthouse_vcs }}"
+        version: master
+        dest: "{{ lighthouse_dir }}"
+      become: true
+    - name: Template lighthouse server config
+      become: true
+      template:
+        src: lighthouse.j2
+        dest: /etc/nginx/conf.d/lighthouse.conf
+        mode: 0755
+      notify: Reload nginx service
