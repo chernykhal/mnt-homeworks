@@ -4,24 +4,111 @@
 
 1. Опишите основные плюсы и минусы pull и push систем мониторинга.
 
+Решение:
+
+- PUSH
+
+- Использование в динамических машинах(example - docker). Система мониторинга должна знать хосты, чтобы пуллить из них метрики.
+- В случае, если узел, принимающий метрики недоступен, то данные будут потерянны.
+
+- PULL
+
+- Управление метриками с одной точки, возможность подключения по SSL к агентам.
+- Всегда известен источник передачи метрик.
+
 2. Какие из ниже перечисленных систем относятся к push модели, а какие к pull? А может есть гибридные?
 
-    - Prometheus 
-    - TICK
-    - Zabbix
-    - VictoriaMetrics
-    - Nagios
+Решение:
+
+- Prometheus - Pull
+- TICK - PUSH
+- Zabbix - PULL
+- VictoriaMetrics - PUSH
+- Nagios - PULL
 
 3. Склонируйте себе [репозиторий](https://github.com/influxdata/sandbox/tree/master) и запустите TICK-стэк, 
 используя технологии docker и docker-compose.(по инструкции ./sandbox up )
 
 В виде решения на это упражнение приведите выводы команд с вашего компьютера (виртуальной машины):
 
+Решение:
+
     - curl http://localhost:8086/ping
+```
+aledcherry@aledcherry:~$ curl http://localhost:8086/ping -v
+*   Trying 127.0.0.1:8086...
+* Connected to localhost (127.0.0.1) port 8086 (#0)
+> GET /ping HTTP/1.1
+> Host: localhost:8086
+> User-Agent: curl/7.81.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< Content-Type: application/json
+< Request-Id: b7bc5c8e-94fe-11ed-8019-0242ac120003
+< X-Influxdb-Build: OSS
+< X-Influxdb-Version: 1.8.10
+< X-Request-Id: b7bc5c8e-94fe-11ed-8019-0242ac120003
+< Date: Sun, 15 Jan 2023 18:02:04 GMT
+<
+* Connection #0 to host localhost left intact
+```
+
     - curl http://localhost:8888
+
+```
+aledcherry@aledcherry:~$ curl http://localhost:8888 -v
+*   Trying 127.0.0.1:8888...
+* Connected to localhost (127.0.0.1) port 8888 (#0)
+> GET / HTTP/1.1
+> Host: localhost:8888
+> User-Agent: curl/7.81.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Accept-Ranges: bytes
+< Cache-Control: public, max-age=3600
+< Content-Length: 414
+< Content-Security-Policy: script-src 'self'; object-src 'self'
+< Content-Type: text/html; charset=utf-8
+< Etag: ubyGAbz3Tc69bqd3w45d4WQtqoI=
+< Vary: Accept-Encoding
+< X-Chronograf-Version: 1.10.0
+< X-Content-Type-Options: nosniff
+< X-Frame-Options: SAMEORIGIN
+< X-Xss-Protection: 1; mode=block
+< Date: Sun, 15 Jan 2023 18:03:04 GMT
+<
+* Connection #0 to host localhost left intact
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/index.c708214f.css"><meta http-equiv="Content-type" content="text/html; charset=utf-8"><title>Chronograf</title><link rel="icon shortcut" href="/favicon.70d63073.ico"></head><body> <div id="react-root" data-basepath=""></div> <script type="module" src="/index.e81b88ee.js"></script><script src="/index.a6955a67.js" nomodule="" defer></script> </body></html>
+```
+
     - curl http://localhost:9092/kapacitor/v1/ping
 
-А также скриншот веб-интерфейса ПО chronograf (`http://localhost:8888`). 
+```
+aledcherry@aledcherry:~$ curl httphttp://localhost:9092/kapacitor/v1/ping
+*   Trying 127.0.0.1:9092...
+* Connected to localhost (127.0.0.1) port 9092 (#0)
+> GET /kapacitor/v1/ping HTTP/1.1
+> Host: localhost:9092
+> User-Agent: curl/7.81.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 204 No Content
+< Content-Type: application/json; charset=utf-8
+< Request-Id: f3ea74ee-94fe-11ed-801c-0242ac120005
+< X-Kapacitor-Version: 1.6.5
+< Date: Sun, 15 Jan 2023 18:03:45 GMT
+<
+* Connection #0 to host localhost left intact
+```
+
+А также скриншот веб-интерфейса ПО chronograf (`http://localhost:8888`).
+
+![img.png](img.png)
 
 P.S.: если при запуске некоторые контейнеры будут падать с ошибкой - проставьте им режим `Z`, например
 `./data:/var/lib:Z`
@@ -47,6 +134,9 @@ P.S.: если при запуске некоторые контейнеры б�
     Поэкспериментируйте с запросом, попробуйте изменить группировку и интервал наблюдений.
     - Приведите скриншот с отображением
     метрик утилизации места на диске (disk->host->telegraf_container_id) из веб-интерфейса.  
+   
+Утилизация диска:
+![img_1.png](img_1.png)
 
 5. Добавьте в конфигурацию telegraf следующий плагин - [docker](https://github.com/influxdata/telegraf/tree/master/plugins/inputs/docker):
 ```
@@ -73,6 +163,10 @@ P.S.: если при запуске некоторые контейнеры б�
 
 После настройки перезапустите telegraf, обновите веб интерфейс и приведите скриншотом список `measurments` в 
 веб-интерфейсе базы telegraf.autogen . Там должны появиться метрики, связанные с docker.
+
+Метрики с docker:
+
+![img_2.png](img_2.png)
 
 Факультативно можете изучить какие метрики собирает telegraf после выполнения данного задания.
 
